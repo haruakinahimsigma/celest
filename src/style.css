@@ -79,3 +79,14 @@ dialog select{background:#0e1120;color:#f5f3ff;border:1px solid #ffffff20;border
 .frame-hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);max-width:calc(100% - 32px);padding:9px 13px;border:1px solid #ffffff20;border-radius:10px;background:#111522ef;color:#d4d7e5;font-size:11px;text-align:center;box-shadow:0 8px 30px #0005}
 .frame-hint[hidden]{display:none}
 @media(max-width:600px){.page-frame,.site-frame{min-height:calc(100vh - 158px)}}
+
+.search-page{width:min(820px,100%);margin:0 auto;padding:34px 24px 60px;color:#eef0f8}
+.search-page h2{font-size:34px;margin:8px 0}
+.search-query{color:#a99bff;font-size:13px;overflow-wrap:anywhere;margin:0 0 25px}
+.search-message{color:#aab0c3;font-size:13px;line-height:1.7}
+.search-results{display:grid;gap:18px;margin-top:22px}
+.search-result{padding:16px 18px;border:1px solid #ffffff12;border-radius:13px;background:#ffffff05}
+.result-domain{font-size:10px;color:#8d93aa;margin:0 0 7px}
+.result-title{border:0;background:none;padding:0;color:#b9adff;font-size:17px;font-weight:600;text-align:left;cursor:pointer}
+.result-title:hover{text-decoration:underline}
+.result-snippet{font-size:12px;color:#aab0c3;line-height:1.65;margin:8px 0 0}
