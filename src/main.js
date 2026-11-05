@@ -42,7 +42,7 @@ app.innerHTML = `
       <button class="tool-btn" data-action="bookmark" title="Bookmark this page">☆</button>
     </section>
     <section class="view" id="view"></section>
-    <footer><span>CELEST</span><span id="status">Engine shell · v0.1.1</span></footer>
+    <footer><span>CELEST</span><span id="status">Engine lab · v0.2.0</span></footer>
   </main>
 </div>
 <dialog id="settings-dialog">
@@ -90,9 +90,7 @@ function renderCurrent() {
   status.textContent = "Loading inside Celest";
   const frame = view.querySelector("iframe");
   frame.addEventListener("load", () => {
-    status.textContent = "Displayed in Celest frame";
-    const hint = document.querySelector("#frame-hint");
-    if (hint) hint.hidden = true;
+    status.textContent = "Frame loaded · site policy may still block content";
   }, { once: true });
 }
 function render() { renderTabs(); renderCurrent(); persist(); }
@@ -160,7 +158,7 @@ document.addEventListener("submit", event => {
 });
 document.addEventListener("click", event => {
   const go = event.target.closest("[data-go]");
-  if (go) return navigate(go.dataset.go);
+  if (go) return navigate(go.dataset.go.startsWith("/") ? new URL(go.dataset.go, location.origin).href : go.dataset.go);
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (action === "new-tab") return addTab();
   if (action === "home") return openHome();
