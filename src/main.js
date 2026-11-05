@@ -74,17 +74,26 @@ function renderHome() {
     <div class="welcome"><div class="orb"></div><p class="eyebrow">YOUR WEB WORKSPACE</p>
     <h1>Explore with <span>Celest.</span></h1><p class="sub">A clean, keyboard-friendly browser workspace.</p>
     <form id="hero-form" class="hero-search"><input id="hero-address" autocomplete="off" placeholder="Search the web or enter a URL" /><button type="submit">Explore</button></form>
-    <div class="quick-links"><button data-go="https://www.google.com">Google</button><button data-go="https://duckduckgo.com">DuckDuckGo</button><button data-go="https://www.youtube.com">YouTube</button><button data-go="https://www.instagram.com">Instagram</button></div>
-    <p class="notice">Celest is an early browser-workspace prototype. External sites open separately when embedded access is unavailable.</p></div>`;
+    <div class="quick-links"><button data-go="https://www.google.com">Google</button><button data-go="https://duckduckgo.com">DuckDuckGo</button><button data-go="https://www.youtube.com">YouTube</button><button data-go="https://www.instagram.com">Instagram</button><button data-go="/__celest_lab__/">Celest Lab</button></div>
+    <p class="notice">Celest is an early browser-workspace prototype. Some websites block embedded viewing through their own security policies.</p></div>`;
 }
 function renderCurrent() {
   const tab = activeTab();
   if (!tab.url) { renderHome(); address.value = ""; status.textContent = "New tab"; return; }
   address.value = tab.url;
-  view.innerHTML = `<div class="external-state"><div class="external-icon">↗</div><p class="eyebrow">SITE DESTINATION</p><h2>${escapeHtml(tab.title)}</h2>
-  <p>This site may prevent embedded display. You can open it directly in a new browser tab.</p>
-  <a href="${escapeHtml(tab.url)}" target="_blank" rel="noopener noreferrer">Open site ↗</a><code>${escapeHtml(tab.url)}</code></div>`;
-  status.textContent = "Ready";
+  const destination = new URL(tab.url, location.origin);
+  const isCelestOrigin = destination.origin === location.origin;
+  const sandbox = isCelestOrigin
+    ? "allow-scripts allow-forms allow-same-origin"
+    : "allow-scripts allow-forms allow-same-origin allow-popups";
+  view.innerHTML = `<div class="page-frame"><iframe class="site-frame" title="${escapeHtml(tab.title)}" src="${escapeHtml(destination.href)}" sandbox="${sandbox}" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen; autoplay; clipboard-read; clipboard-write"></iframe><div class="frame-hint" id="frame-hint">Loading inside Celest. If this site refuses embedding, its security policy is blocking the frame.</div></div>`;
+  status.textContent = "Loading inside Celest";
+  const frame = view.querySelector("iframe");
+  frame.addEventListener("load", () => {
+    status.textContent = "Displayed in Celest frame";
+    const hint = document.querySelector("#frame-hint");
+    if (hint) hint.hidden = true;
+  }, { once: true });
 }
 function render() { renderTabs(); renderCurrent(); persist(); }
 
@@ -138,6 +147,12 @@ function renderBookmarks() {
     <div class="bookmark-row"><button data-bookmark-open="${i}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.url)}</small></button><button class="remove-bookmark" data-bookmark-remove="${i}" title="Remove bookmark">×</button></div>`).join("") : '<p class="empty-bookmarks">No bookmarks yet. Save a page with the ☆ button.</p>';
 }
 function openHome() { renderHome(); address.value = ""; status.textContent = "New tab"; }
+
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  navigator.serviceWorker.register("/celest-sw.js", { scope: "/" })
+    .then(() => { status.textContent = "Celest Service Worker ready"; })
+    .catch(() => { status.textContent = "Service Worker unavailable"; });
+}
 
 document.addEventListener("submit", event => {
   if (event.target.id === "address-form") { event.preventDefault(); navigate(address.value); }
