@@ -4,28 +4,27 @@ const SEARCH_ENGINES = {
 };
 
 /**
- * Normalize user-entered addresses.
- * This module deliberately does not tunnel traffic or rewrite requests.
+ * Match the familiar address-bar decision:
+ * explicit URLs and bare hostnames navigate; everything else is a search.
+ * Search-result retrieval is handled by Celest's own results view.
  */
-export function resolveAddress(input, searchEngine = "google") {
+export function isLikelyUrl(input) {
   const value = String(input ?? "").trim();
-  if (!value) return null;
+  if (!value || /\s/.test(value)) return false;
+  if (/^https?:\/\//i.test(value)) return true;
+  return /^(localhost|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})(:\d+)?([/?#].*)?$/i.test(value);
+}
 
-  if (/^(https?):\/\//i.test(value)) {
-    try {
-      const url = new URL(value);
-      if (!["http:", "https:"].includes(url.protocol)) return null;
-      return url.href;
-    } catch {
-      return null;
-    }
+export function resolveAddress(input) {
+  const value = String(input ?? "").trim();
+  if (!value || !isLikelyUrl(value)) return null;
+  try {
+    const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    return url.href;
+  } catch {
+    return null;
   }
-
-  const looksLikeHost = /^(localhost|[\w-]+\.[a-z]{2,})(:\d+)?([/?#].*)?$/i.test(value);
-  if (looksLikeHost) return `https://${value}`;
-
-  const base = SEARCH_ENGINES[searchEngine] ?? SEARCH_ENGINES.google;
-  return base + encodeURIComponent(value);
 }
 
 export function isAllowedWebUrl(value) {
