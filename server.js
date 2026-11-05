@@ -55,11 +55,11 @@ const server = http.createServer(async (req, res) => {
         .replace(/<[^>]*>/g, " ")
         .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
         .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-        .replace(/&#(\\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-        .replace(/&#x([\\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-        .replace(/\\s+/g, " ").trim();
-      const anchors = [...html.matchAll(/<a\\b([^>]*class=["'][^"']*result__a[^"']*["'][^>]*)>([\\s\\S]*?)<\\/a>/gi)];
-      const snippets = [...html.matchAll(/<(?:a|td)\\b([^>]*class=["'][^"']*result__snippet[^"']*["'][^>]*)>([\\s\\S]*?)<\\/(?:a|td)>/gi)];
+        .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+        .replace(/&#x([\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+        .replace(/\s+/g, " ").trim();
+      const anchors = [...html.matchAll(/<a\b([^>]*class=["'][^"']*result__a[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi)];
+      const snippets = [...html.matchAll(/<(?:a|td)\b([^>]*class=["'][^"']*result__snippet[^"']*["'][^>]*)>([\s\S]*?)<\/(?:a|td)>/gi)];
       const results = anchors.map((match, index) => {
         const href = match[1].match(/href=["']([^"']+)["']/i)?.[1];
         if (!href) return null;
