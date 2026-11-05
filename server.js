@@ -21,7 +21,7 @@ const types = {
 const server = http.createServer(async (req, res) => {
   if (req.url === "/health") {
     res.writeHead(200, {"content-type":"application/json"});
-    res.end(JSON.stringify({ok:true,app:"celest",version:"0.1.2"}));
+    res.end(JSON.stringify({ok:true,app:"celest",version:"0.2.0"}));
     return;
   }
 
