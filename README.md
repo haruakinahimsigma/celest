@@ -4,7 +4,7 @@ Celest is an independently written browser-style web workspace. It is not a fork
 
 ## Current status
 
-**v0.1.2 — browser-workspace foundation**
+**v0.2.0 — in-app viewport and Service Worker lab foundation**
 
 - Dark browser-style interface
 - Multiple tabs with persistent session state
@@ -14,10 +14,12 @@ Celest is an independently written browser-style web workspace. It is not a fork
 - Keyboard shortcuts: Cmd/Ctrl+L, Cmd/Ctrl+T, Cmd/Ctrl+W
 - Persistent search-engine setting
 - URL normalization and HTTP(S)-only destination validation
+- In-app iframe viewport for destinations that permit embedding
+- Service Worker registration and a controlled same-origin lab fixture
 - Node static server with a Railway health endpoint
 - URL resolver tests
 
-External destinations currently open separately because many sites disallow embedding. This release does not proxy traffic.
+Destinations now load inside Celest's content viewport when their embedding policies allow it. Sites that disallow embedding may still refuse to display. This release is not a general-purpose proxy and does not rewrite or relay arbitrary third-party traffic.
 
 ## Local development
 
@@ -48,7 +50,7 @@ The Node server serves the generated `dist/` directory and listens on Railway's 
 
 1. **Celest UI** — browser controls, tabs, history, bookmarks, settings.
 2. **Celest Core** — navigation lifecycle, resource policy, and compatibility diagnostics.
-3. **Service Worker lab** — controlled experiments on pages and origins you own or are authorized to test.
+3. **Service Worker lab** — controlled request interception on Celest's own same-origin test fixture.
 4. **Transport lab** — WebSocket protocol exercises against a local test server, not an unrestricted relay.
 5. **Compatibility testing** — document which public sites work normally and which features are blocked by site policies.
 
