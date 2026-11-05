@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Celest Engine Lab</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;padding:36px;font:15px system-ui,sans-serif;color:#202338;background:#f5f6fb}
+    main{max-width:760px;margin:auto}small{color:#697087;letter-spacing:2px;font-weight:700}
+    h1{font-size:clamp(32px,6vw,52px);letter-spacing:-2px;margin:10px 0}
+    p{line-height:1.7;color:#596078}.panel{margin:22px 0;padding:20px;border:1px solid #dfe2ef;border-radius:16px;background:white}
+    button{padding:10px 14px;border:0;border-radius:9px;background:#6557d8;color:white;font-weight:700;cursor:pointer}
+    code{overflow-wrap:anywhere}.status{font-weight:700;color:#3c328f}
+  </style>
+</head>
+<body>
+  <main>
+    <small>CELEST / INTERNAL TEST ORIGIN</small>
+    <h1>Engine Lab</h1>
+    <p>This page is served by Celest itself. It is a safe fixture for testing the in-app viewport and Service Worker request handling before adding more complex browser features.</p>
+    <section class="panel">
+      <h2>Viewport interaction</h2>
+      <p>Button clicks and JavaScript execute inside Celest's content frame.</p>
+      <button id="counter">Clicks: 0</button>
+    </section>
+    <section class="panel">
+      <h2>Service Worker check</h2>
+      <p id="sw-status" class="status">Checking request interception…</p>
+      <p><code id="sw-header">X-Celest-Service-Worker: checking</code></p>
+    </section>
+    <section class="panel">
+      <h2>Current document</h2>
+      <p><code id="current-url"></code></p>
+    </section>
+  </main>
+  <script>
+    let count = 0;
+    const counter = document.querySelector("#counter");
+    counter.addEventListener("click", () => {
+      count += 1;
+      counter.textContent = "Clicks: " + count;
+    });
+    document.querySelector("#current-url").textContent = location.href;
+    fetch(location.href, { cache: "no-store" })
+      .then(response => {
+        const marker = response.headers.get("X-Celest-Service-Worker");
+        document.querySelector("#sw-header").textContent = "X-Celest-Service-Worker: " + (marker || "not intercepted yet");
+        document.querySelector("#sw-status").textContent = marker
+          ? "Service Worker successfully intercepted this controlled lab request."
+          : "Fixture loaded. Refresh Celest once if the Service Worker was just installed.";
+      })
+      .catch(() => {
+        document.querySelector("#sw-status").textContent = "Could not verify the Service Worker request.";
+      });
+  </script>
+</body>
+</html>
