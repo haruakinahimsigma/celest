@@ -1,5 +1,5 @@
 import "./style.css";
-import { resolveAddress, isAllowedWebUrl } from "./engine/url.js";
+import { resolveAddress, isLikelyUrl, isAllowedWebUrl } from "./engine/url.js";
 
 const STORAGE_KEY = "celest-state-v1";
 const app = document.querySelector("#app");
@@ -77,9 +77,45 @@ function renderHome() {
     <div class="quick-links"><button data-go="https://www.google.com">Google</button><button data-go="https://duckduckgo.com">DuckDuckGo</button><button data-go="https://www.youtube.com">YouTube</button><button data-go="https://www.instagram.com">Instagram</button><button data-go="/__celest_lab__/">Celest Lab</button></div>
     <p class="notice">Celest is an early browser-workspace prototype. Some websites block embedded viewing through their own security policies.</p></div>`;
 }
+
+async function renderSearchResults(query, searchStateUrl) {
+  view.innerHTML = `<div class="search-page"><p class="eyebrow">CELEST SEARCH</p><h2>Searching the web</h2><p class="search-query">${escapeHtml(query)}</p><p class="search-message">Fetching results…</p></div>`;
+  status.textContent = "Searching";
+  try {
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { headers: { accept: "application/json" } });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Search request failed");
+    if (activeTab().url !== searchStateUrl) return;
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    view.innerHTML = `
+      <div class="search-page">
+        <p class="eyebrow">CELEST SEARCH · DUCKDUCKGO</p>
+        <h2>Results</h2>
+        <p class="search-query">${escapeHtml(query)}</p>
+        ${results.length ? `<div class="search-results">${results.map((item, index) => `
+          <article class="search-result">
+            <p class="result-domain">${escapeHtml(new URL(item.url).hostname)}</p>
+            <button class="result-title" data-result-url="${escapeHtml(item.url)}">${escapeHtml(item.title || item.url)}</button>
+            <p class="result-snippet">${escapeHtml(item.snippet || "")}</p>
+          </article>`).join("")}</div>` : '<p class="search-message">No results were returned. Try a different query.</p>'}
+      </div>`;
+    status.textContent = `${results.length} search results`;
+  } catch (error) {
+    if (activeTab().url !== searchStateUrl) return;
+    view.innerHTML = `<div class="search-page"><p class="eyebrow">CELEST SEARCH</p><h2>Search unavailable</h2><p class="search-query">${escapeHtml(query)}</p><p class="search-message">${escapeHtml(error.message || "The search provider could not be reached.")}</p></div>`;
+    status.textContent = "Search failed";
+  }
+}
+
 function renderCurrent() {
   const tab = activeTab();
   if (!tab.url) { renderHome(); address.value = ""; status.textContent = "New tab"; return; }
+  if (tab.url.startsWith("celest-search://")) {
+    const query = new URL(tab.url).searchParams.get("q") || "";
+    address.value = query;
+    renderSearchResults(query, tab.url);
+    return;
+  }
   address.value = tab.url;
   const destination = new URL(tab.url, location.origin);
   const isCelestOrigin = destination.origin === location.origin;
@@ -96,9 +132,24 @@ function renderCurrent() {
 function render() { renderTabs(); renderCurrent(); persist(); }
 
 function navigate(raw, { replace = false } = {}) {
-  const url = resolveAddress(raw, state.searchEngine);
-  if (!url || !isAllowedWebUrl(url)) { status.textContent = "Enter a valid web address"; return; }
+  const value = String(raw ?? "").trim();
+  if (!value) { status.textContent = "Enter a search or web address"; return; }
   const tab = activeTab();
+  if (!isLikelyUrl(value)) {
+    const searchUrl = `celest-search://results?q=${encodeURIComponent(value)}`;
+    if (replace && tab.index >= 0) tab.history[tab.index] = searchUrl;
+    else {
+      tab.history = tab.history.slice(0, tab.index + 1);
+      tab.history.push(searchUrl);
+      tab.index = tab.history.length - 1;
+    }
+    tab.url = searchUrl;
+    tab.title = `Search: ${value.slice(0, 24)}`;
+    render();
+    return;
+  }
+  const url = resolveAddress(value);
+  if (!url || !isAllowedWebUrl(url)) { status.textContent = "Enter a valid web address"; return; }
   if (replace && tab.index >= 0) tab.history[tab.index] = url;
   else {
     tab.history = tab.history.slice(0, tab.index + 1);
@@ -168,6 +219,8 @@ document.addEventListener("click", event => {
   if (action === "back") return goHistory(-1);
   if (action === "forward") return goHistory(1);
   if (action === "reload") { const tab = activeTab(); if (tab.url) renderCurrent(); return; }
+  const resultLink = event.target.closest("[data-result-url]");
+  if (resultLink) return navigate(resultLink.dataset.resultUrl);
 
   const close = event.target.closest("[data-close]");
   if (close) { event.stopPropagation(); return closeTab(Number(close.dataset.close)); }
