@@ -3,14 +3,14 @@ import { resolveAddress, isLikelyUrl, isAllowedWebUrl } from "./engine/url.js";
 
 const STORAGE_KEY = "celest-state-v1";
 const app = document.querySelector("#app");
-const defaults = { tabs: [{ id: 1, title: "New tab", url: "", history: [], index: -1, active: true }], bookmarks: [], searchEngine: "google", nextId: 2 };
+const defaults = { tabs: [{ id: 1, title: "New tab", url: "", history: [], index: -1, active: true }], bookmarks: [], searchEngine: "duckduckgo", nextId: 2 };
 let state = loadState();
 
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
-      return { ...defaults, ...saved, tabs: saved.tabs, bookmarks: Array.isArray(saved.bookmarks) ? saved.bookmarks : [] };
+      return { ...defaults, ...saved, searchEngine: "duckduckgo", tabs: saved.tabs, bookmarks: Array.isArray(saved.bookmarks) ? saved.bookmarks : [] };
     }
   } catch {}
   return structuredClone(defaults);
@@ -47,7 +47,7 @@ app.innerHTML = `
 </div>
 <dialog id="settings-dialog">
   <form method="dialog" class="dialog-head"><h2>Settings</h2><button class="tool-btn">✕</button></form>
-  <label>Search engine<select id="search-engine"><option value="google">Google</option><option value="duckduckgo">DuckDuckGo</option></select></label>
+  <label>Search engine<select id="search-engine"><option value="duckduckgo">DuckDuckGo</option></select></label>
   <p class="dialog-note">Settings are saved on this device.</p>
 </dialog>
 <dialog id="bookmarks-dialog">
@@ -166,7 +166,9 @@ function goHistory(delta) {
   if (next < 0 || next >= tab.history.length) { status.textContent = "No more page history"; return; }
   tab.index = next;
   tab.url = tab.history[next];
-  tab.title = new URL(tab.url).hostname.replace(/^www\./, "");
+  tab.title = tab.url.startsWith("celest-search://")
+    ? `Search: ${new URL(tab.url).searchParams.get("q")?.slice(0, 24) || ""}`
+    : new URL(tab.url).hostname.replace(/^www\./, "");
   render();
 }
 function addTab() {
