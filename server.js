@@ -36,6 +36,50 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+
+  if (requestUrl.pathname === "/api/search") {
+    const query = (requestUrl.searchParams.get("q") || "").trim();
+    if (!query || query.length > 200) {
+      res.writeHead(400, {"content-type":"application/json; charset=utf-8"});
+      res.end(JSON.stringify({error:"Enter a search between 1 and 200 characters."}));
+      return;
+    }
+    try {
+      const upstream = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+        headers: {"user-agent":"Mozilla/5.0 (compatible; CelestSearch/1.0)","accept":"text/html"},
+        signal: AbortSignal.timeout(9000)
+      });
+      if (!upstream.ok) throw new Error(`Search provider returned HTTP ${upstream.status}`);
+      const html = await upstream.text();
+      const decode = value => value
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+        .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+        .replace(/&#(\\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+        .replace(/&#x([\\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+        .replace(/\\s+/g, " ").trim();
+      const anchors = [...html.matchAll(/<a\\b([^>]*class=["'][^"']*result__a[^"']*["'][^>]*)>([\\s\\S]*?)<\\/a>/gi)];
+      const snippets = [...html.matchAll(/<(?:a|td)\\b([^>]*class=["'][^"']*result__snippet[^"']*["'][^>]*)>([\\s\\S]*?)<\\/(?:a|td)>/gi)];
+      const results = anchors.map((match, index) => {
+        const href = match[1].match(/href=["']([^"']+)["']/i)?.[1];
+        if (!href) return null;
+        try {
+          const parsed = new URL(href, "https://duckduckgo.com");
+          const target = parsed.searchParams.get("uddg") || parsed.href;
+          const safe = new URL(target);
+          if (!["http:", "https:"].includes(safe.protocol)) return null;
+          return {url:safe.href,title:decode(match[2]),snippet:decode(snippets[index]?.[2] || "")};
+        } catch { return null; }
+      }).filter(Boolean).slice(0, 12);
+      res.writeHead(200, {"content-type":"application/json; charset=utf-8","cache-control":"public, max-age=180"});
+      res.end(JSON.stringify({query,results}));
+    } catch (error) {
+      res.writeHead(502, {"content-type":"application/json; charset=utf-8","cache-control":"no-store"});
+      res.end(JSON.stringify({error:error.message || "Search provider unavailable"}));
+    }
+    return;
+  }
+
   if (req.url === "/health") {
     res.writeHead(200, {"content-type":"application/json"});
     res.end(JSON.stringify({ok:true,app:"celest",version:"0.2.0"}));
