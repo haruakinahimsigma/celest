@@ -21,26 +21,27 @@ const types = {
 const server = http.createServer(async (req, res) => {
   if (req.url === "/health") {
     res.writeHead(200, {"content-type":"application/json"});
-    res.end(JSON.stringify({ok:true,app:"celest",version:"0.1.1"}));
+    res.end(JSON.stringify({ok:true,app:"celest",version:"0.1.2"}));
     return;
   }
 
   try {
     const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
-    const safePath = path.normalize(pathname).replace(/^([.][.][/\\\\])+/, "");
-    let filePath = path.join(root, safePath);
-    if (!filePath.startsWith(root)) throw new Error("Invalid path");
+    const filePath = path.resolve(root, `.${pathname}`);
+    const relativePath = path.relative(root, filePath);
+    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) throw new Error("Invalid path");
+    let resolvedFile = filePath;
 
     try {
-      const info = await stat(filePath);
-      if (info.isDirectory()) filePath = path.join(filePath, "index.html");
+      const info = await stat(resolvedFile);
+      if (info.isDirectory()) resolvedFile = path.join(resolvedFile, "index.html");
     } catch {
-      filePath = path.join(root, "index.html");
+      resolvedFile = path.join(root, "index.html");
     }
 
-    const body = await readFile(filePath);
+    const body = await readFile(resolvedFile);
     res.writeHead(200, {
-      "content-type": types[path.extname(filePath)] || "application/octet-stream",
+      "content-type": types[path.extname(resolvedFile)] || "application/octet-stream",
       "x-content-type-options":"nosniff",
       "referrer-policy":"strict-origin-when-cross-origin"
     });
