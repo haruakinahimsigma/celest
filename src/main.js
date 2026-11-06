@@ -8,6 +8,7 @@ import { SettingsManager } from "./settings/settings-manager.js";
 const STORAGE_KEY = "celest-state-v1";
 const settings = new SettingsManager();
 const engines = new EngineManager();
+engines.select(settings.get("engine"));
 const search = new SearchManager(settings.get("searchEngine"));
 const app = document.querySelector("#app");
 const defaults = { tabs: [{ id: 1, title: "New tab", url: "", history: [], index: -1, active: true }], bookmarks: [], searchEngine: "duckduckgo", nextId: 2 };
@@ -49,13 +50,13 @@ app.innerHTML = `
       <button class="tool-btn" data-action="bookmark" title="Bookmark this page">☆</button>
     </section>
     <section class="view" id="view"></section>
-    <footer><span>CELEST</span><span id="status">Engine lab · v0.2.0</span></footer>
+    <footer><span>CELEST</span><span id="status" role="status" aria-live="polite">Celest · v0.3.0</span></footer>
   </main>
 </div>
 <dialog id="settings-dialog">
   <form method="dialog" class="dialog-head"><h2>Settings</h2><button class="tool-btn">✕</button></form>
-  <label>Search provider<select id="search-engine"><option value="duckduckgo">DuckDuckGo · in-app results</option><option value="google">Google · standard search page</option></select></label>
-  <label class="settings-section">Browsing mode<select id="engine-select"><option value="native-frame">Native browser frame</option><option value="same-origin-lab">Same-origin Service Worker lab</option></select></label>
+  <label for="search-engine">Search provider<select id="search-engine"><option value="duckduckgo">DuckDuckGo · in-app results</option><option value="google">Google · standard search page</option></select></label>
+  <label class="settings-section" for="engine-select">Browsing mode<select id="engine-select"><option value="native-frame">Native browser frame</option><option value="same-origin-lab">Same-origin Service Worker lab</option></select></label>
   <section class="settings-section"><p class="settings-label">Authorized backend endpoint</p><input id="backend-url" class="settings-input" type="url" placeholder="https://your-service.example" autocomplete="url" /><div class="settings-actions"><button type="button" id="backend-save">Save endpoint</button><button type="button" class="secondary" id="backend-test">Test /health</button></div><p id="backend-status" class="connection-status" data-state="idle">Optional. Used only for a connectivity check against the endpoint’s /health route.</p></section>
   <p class="dialog-note">Celest uses ordinary HTTP(S) navigation and embedded frames when permitted by each site. The lab only tests Celest-owned, same-origin resources.</p>
 </dialog>
@@ -90,6 +91,7 @@ function renderHome() {
 }
 
 async function renderSearchResults(query, searchStateUrl) {
+  const provider = search.getProvider();
   view.innerHTML = `<div class="search-page"><p class="eyebrow">CELEST SEARCH</p><h2>Searching the web</h2><p class="search-query">${escapeHtml(query)}</p><p class="search-message">Fetching results…</p></div>`;
   status.textContent = "Searching";
   try {
@@ -100,7 +102,7 @@ async function renderSearchResults(query, searchStateUrl) {
     const results = Array.isArray(payload.results) ? payload.results : [];
     view.innerHTML = `
       <div class="search-page">
-        <p class="eyebrow">CELEST SEARCH · ${search.getProvider().name.toUpperCase()}</p>
+        <p class="eyebrow">CELEST SEARCH · ${provider.name.toUpperCase()}</p>
         <h2>Results</h2>
         <p class="search-query">${escapeHtml(query)}</p>
         ${results.length ? `<div class="search-results">${results.map((item, index) => `
@@ -149,7 +151,11 @@ function navigate(raw, { replace = false } = {}) {
   if (!isLikelyUrl(value)) {
     let searchRequest;
     try { searchRequest = search.createSearch(value); } catch (error) { status.textContent = error.message; return; }
-    if (searchRequest.mode === "navigate") return navigate(searchRequest.url, { replace });
+    if (searchRequest.mode === "external") {
+      const opened = window.open(searchRequest.url, "_blank", "noopener,noreferrer");
+      status.textContent = opened === null ? "Google search requested · check whether your browser blocked the new tab" : "Google search opened in a new tab";
+      return;
+    }
     const searchUrl = searchRequest.url;
     if (replace && tab.index >= 0) tab.history[tab.index] = searchUrl;
     else {
@@ -267,9 +273,14 @@ document.querySelector("#search-engine").addEventListener("change", event => {
 document.querySelector("#engine-select").addEventListener("change", event => {
   const selected = event.target.value;
   if (!engines.supports(selected)) { status.textContent = "That browsing mode is unavailable"; return; }
-  settings.set("engine", selected);
+  try { engines.select(selected); settings.set("engine", selected); }
+  catch (error) { status.textContent = error.message; return; }
   if (selected === "same-origin-lab") navigate(new URL("/__celest_lab__/", location.origin).href);
-  else status.textContent = "Native browser frame selected";
+  else {
+    const tab = activeTab();
+    if (tab.url.startsWith(new URL("/__celest_lab__/", location.origin).href)) openHome();
+    status.textContent = "Native browser frame selected";
+  }
 });
 document.querySelector("#backend-save").addEventListener("click", () => {
   const input = document.querySelector("#backend-url");
