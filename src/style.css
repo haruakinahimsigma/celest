@@ -90,3 +90,18 @@ dialog select{background:#0e1120;color:#f5f3ff;border:1px solid #ffffff20;border
 .result-title{border:0;background:none;padding:0;color:#b9adff;font-size:17px;font-weight:600;text-align:left;cursor:pointer}
 .result-title:hover{text-decoration:underline}
 .result-snippet{font-size:12px;color:#aab0c3;line-height:1.65;margin:8px 0 0}
+
+
+/* Bare endpoint settings */
+.settings-section{margin-top:22px;padding-top:18px;border-top:1px solid #ffffff12}
+.settings-label{margin:0 0 9px;color:#aeb3c6;font-size:12px}
+.settings-input{width:100%;min-width:0;background:#0e1120;color:#f5f3ff;border:1px solid #ffffff20;border-radius:9px;padding:11px;font-size:12px;outline:0}
+.settings-input:focus{border-color:#9181ff99;box-shadow:0 0 0 3px #9181ff18}
+.settings-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.settings-actions button{border:0;border-radius:8px;background:#9181ff;color:#100f1b;font-weight:700;padding:9px 11px;font-size:11px}
+.settings-actions button.secondary{background:#ffffff0d;color:#c5c8d7;border:1px solid #ffffff14}
+.connection-status{font-size:11px;line-height:1.6;color:#9298ae;margin:10px 0 0;overflow-wrap:anywhere}
+.connection-status[data-state="success"]{color:#8fd6ad}
+.connection-status[data-state="warning"]{color:#e6c27e}
+.connection-status[data-state="error"]{color:#ff9ca4}
+.connection-status[data-state="pending"]{color:#b9adff}
