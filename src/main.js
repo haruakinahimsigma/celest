@@ -68,9 +68,6 @@ const status = document.querySelector("#status");
 const settingsDialog = document.querySelector("#settings-dialog");
 const bookmarksDialog = document.querySelector("#bookmarks-dialog");
 document.querySelector("#search-engine").value = state.searchEngine;
-const bareServerInput = document.querySelector("#bare-server-url");
-const bareServerStatus = document.querySelector("#bare-server-status");
-bareServerInput.value = state.bareServerUrl;
 
 function renderTabs() {
   tabsEl.innerHTML = state.tabs.map(tab => `
