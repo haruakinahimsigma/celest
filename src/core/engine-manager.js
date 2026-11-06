@@ -1,6 +1,7 @@
 export class EngineManager {
   constructor() {
     this.engines = new Map();
+    this.activeId = "native-frame";
     this.register({ id: "native-frame", name: "Native browser frame", description: "Standard HTTP(S) navigation in an embedded frame when the site permits it.", kind: "frame" });
     this.register({ id: "same-origin-lab", name: "Same-origin lab", description: "Controlled Celest-owned Service Worker test environment.", kind: "lab" });
   }
@@ -16,4 +17,12 @@ export class EngineManager {
   list() { return [...this.engines.values()]; }
   get(id) { return this.engines.get(id) || this.engines.get("native-frame"); }
   supports(id) { return this.engines.has(id); }
+
+  select(id) {
+    if (!this.supports(id)) throw new Error("Unsupported browsing mode: " + id);
+    this.activeId = id;
+    return this.get(id);
+  }
+
+  active() { return this.get(this.activeId); }
 }
