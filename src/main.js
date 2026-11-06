@@ -255,7 +255,7 @@ document.addEventListener("click", event => {
 function normalizeBareServerUrl(value) {
   const parsed = new URL(String(value || "").trim());
   if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("Use an HTTP or HTTPS URL.");
-  return parsed.origin + parsed.pathname.replace(/\\/+$/, "");
+  return parsed.origin + parsed.pathname.replace(/\/+$/, "");
 }
 document.querySelector("#save-bare-server").addEventListener("click", () => {
   try {
