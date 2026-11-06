@@ -105,3 +105,8 @@ dialog select{background:#0e1120;color:#f5f3ff;border:1px solid #ffffff20;border
 .connection-status[data-state="warning"]{color:#e6c27e}
 .connection-status[data-state="error"]{color:#ff9ca4}
 .connection-status[data-state="pending"]{color:#b9adff}
+
+
+.frame-actions{position:absolute;z-index:2;top:10px;right:12px;display:flex;gap:7px}
+.frame-actions button{border:1px solid #ffffff22;border-radius:8px;background:#111522eF;color:#e9e7f8;padding:8px 11px;font-size:11px;cursor:pointer;box-shadow:0 4px 18px #0004}
+.frame-actions button:hover{background:#29243f;border-color:#9b8cff88}
