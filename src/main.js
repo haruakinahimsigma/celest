@@ -3,14 +3,14 @@ import { resolveAddress, isLikelyUrl, isAllowedWebUrl } from "./engine/url.js";
 
 const STORAGE_KEY = "celest-state-v1";
 const app = document.querySelector("#app");
-const defaults = { tabs: [{ id: 1, title: "New tab", url: "", history: [], index: -1, active: true }], bookmarks: [], searchEngine: "duckduckgo", nextId: 2 };
+const defaults = { tabs: [{ id: 1, title: "New tab", url: "", history: [], index: -1, active: true }], bookmarks: [], searchEngine: "duckduckgo", bareServerUrl: "https://bare-server-workers.vercel.app", nextId: 2 };
 let state = loadState();
 
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
-      return { ...defaults, ...saved, searchEngine: "duckduckgo", tabs: saved.tabs, bookmarks: Array.isArray(saved.bookmarks) ? saved.bookmarks : [] };
+      return { ...defaults, ...saved, searchEngine: "duckduckgo", bareServerUrl: typeof saved.bareServerUrl === "string" ? saved.bareServerUrl : defaults.bareServerUrl, tabs: saved.tabs, bookmarks: Array.isArray(saved.bookmarks) ? saved.bookmarks : [] };
     }
   } catch {}
   return structuredClone(defaults);
@@ -48,7 +48,13 @@ app.innerHTML = `
 <dialog id="settings-dialog">
   <form method="dialog" class="dialog-head"><h2>Settings</h2><button class="tool-btn">✕</button></form>
   <label>Search engine<select id="search-engine"><option value="duckduckgo">DuckDuckGo</option></select></label>
-  <p class="dialog-note">Settings are saved on this device.</p>
+  <section class="settings-section">
+    <p class="settings-label">Bare server endpoint</p>
+    <input id="bare-server-url" class="settings-input" type="url" inputmode="url" spellcheck="false" placeholder="https://your-bare-server.example" />
+    <div class="settings-actions"><button id="save-bare-server" type="button">Save endpoint</button><button id="test-bare-server" class="secondary" type="button">Test connection</button><button id="reset-bare-server" class="secondary" type="button">Reset</button></div>
+    <p id="bare-server-status" class="connection-status" role="status">Endpoint is saved locally. Connection has not been tested.</p>
+  </section>
+  <p class="dialog-note">Settings are saved on this device. Saving an endpoint configures it for the next engine integration; it does not proxy pages by itself.</p>
 </dialog>
 <dialog id="bookmarks-dialog">
   <form method="dialog" class="dialog-head"><h2>Bookmarks</h2><button class="tool-btn">✕</button></form>
@@ -62,6 +68,9 @@ const status = document.querySelector("#status");
 const settingsDialog = document.querySelector("#settings-dialog");
 const bookmarksDialog = document.querySelector("#bookmarks-dialog");
 document.querySelector("#search-engine").value = state.searchEngine;
+const bareServerInput = document.querySelector("#bare-server-url");
+const bareServerStatus = document.querySelector("#bare-server-status");
+bareServerInput.value = state.bareServerUrl;
 
 function renderTabs() {
   tabsEl.innerHTML = state.tabs.map(tab => `
@@ -241,6 +250,49 @@ document.addEventListener("click", event => {
   if (removeBookmark) {
     state.bookmarks.splice(Number(removeBookmark.dataset.bookmarkRemove), 1);
     persist(); renderBookmarks();
+  }
+});
+function normalizeBareServerUrl(value) {
+  const parsed = new URL(String(value || "").trim());
+  if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("Use an HTTP or HTTPS URL.");
+  return parsed.origin + parsed.pathname.replace(/\\/+$/, "");
+}
+document.querySelector("#save-bare-server").addEventListener("click", () => {
+  try {
+    state.bareServerUrl = normalizeBareServerUrl(bareServerInput.value);
+    bareServerInput.value = state.bareServerUrl;
+    persist();
+    bareServerStatus.textContent = "Endpoint saved on this device. The browsing engine is not connected to it yet.";
+    bareServerStatus.dataset.state = "success";
+  } catch (error) {
+    bareServerStatus.textContent = error.message || "Enter a valid endpoint URL.";
+    bareServerStatus.dataset.state = "error";
+  }
+});
+document.querySelector("#reset-bare-server").addEventListener("click", () => {
+  state.bareServerUrl = defaults.bareServerUrl;
+  bareServerInput.value = state.bareServerUrl;
+  persist();
+  bareServerStatus.textContent = "Endpoint reset to the default address. The browsing engine is not connected to it yet.";
+  bareServerStatus.dataset.state = "neutral";
+});
+document.querySelector("#test-bare-server").addEventListener("click", async () => {
+  let endpoint;
+  try { endpoint = normalizeBareServerUrl(bareServerInput.value); }
+  catch (error) {
+    bareServerStatus.textContent = error.message || "Enter a valid endpoint URL.";
+    bareServerStatus.dataset.state = "error";
+    return;
+  }
+  bareServerStatus.textContent = "Checking whether the endpoint is reachable from this browser…";
+  bareServerStatus.dataset.state = "pending";
+  try {
+    const response = await fetch(endpoint, { method: "GET", mode: "cors", cache: "no-store" });
+    bareServerStatus.textContent = `Server responded with HTTP ${response.status}. This confirms reachability only, not Bare protocol compatibility.`;
+    bareServerStatus.dataset.state = response.ok ? "success" : "warning";
+  } catch {
+    bareServerStatus.textContent = "Browser could not read a response. Check the URL, CORS settings, and whether the service is online.";
+    bareServerStatus.dataset.state = "error";
   }
 });
 document.querySelector("#search-engine").addEventListener("change", event => {
