@@ -229,7 +229,8 @@ document.addEventListener("click", event => {
   if (action === "bookmark") return saveBookmark();
   if (action === "back") return goHistory(-1);
   if (action === "forward") return goHistory(1);
-  if (action === "reload") { const tab = activeTab(); if (tab.url) renderCurrent(); return; }\n  if (event.target.closest("[data-open-external]")) { const tab = activeTab(); if (tab.url && !tab.url.startsWith("celest-search://")) window.open(tab.url, "_blank", "noopener,noreferrer"); return; }
+  if (action === "reload") { const tab = activeTab(); if (tab.url) renderCurrent(); return; }
+  if (event.target.closest("[data-open-external]")) { const tab = activeTab(); if (tab.url && !tab.url.startsWith("celest-search://")) window.open(tab.url, "_blank", "noopener,noreferrer"); return; }
   const resultLink = event.target.closest("[data-result-url]");
   if (resultLink) return navigate(resultLink.dataset.resultUrl);
 
