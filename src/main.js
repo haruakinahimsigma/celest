@@ -1,7 +1,14 @@
 import "./style.css";
 import { resolveAddress, isLikelyUrl, isAllowedWebUrl } from "./engine/url.js";
+import { EngineManager } from "./core/engine-manager.js";
+import { checkBackend, normalizeBackendUrl } from "./core/backend-diagnostics.js";
+import { SearchManager } from "./search/search-manager.js";
+import { SettingsManager } from "./settings/settings-manager.js";
 
 const STORAGE_KEY = "celest-state-v1";
+const settings = new SettingsManager();
+const engines = new EngineManager();
+const search = new SearchManager(settings.get("searchEngine"));
 const app = document.querySelector("#app");
 const defaults = { tabs: [{ id: 1, title: "New tab", url: "", history: [], index: -1, active: true }], bookmarks: [], searchEngine: "duckduckgo", nextId: 2 };
 let state = loadState();
@@ -10,7 +17,7 @@ function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
-      return { ...defaults, ...saved, searchEngine: saved.searchEngine === "duckduckgo" ? saved.searchEngine : defaults.searchEngine, tabs: saved.tabs, bookmarks: Array.isArray(saved.bookmarks) ? saved.bookmarks : [] };
+      return { ...defaults, ...saved, searchEngine: ["duckduckgo", "google"].includes(saved.searchEngine) ? saved.searchEngine : defaults.searchEngine, tabs: saved.tabs, bookmarks: Array.isArray(saved.bookmarks) ? saved.bookmarks : [] };
     }
   } catch {}
   return structuredClone(defaults);
@@ -47,8 +54,10 @@ app.innerHTML = `
 </div>
 <dialog id="settings-dialog">
   <form method="dialog" class="dialog-head"><h2>Settings</h2><button class="tool-btn">✕</button></form>
-  <label>Search engine<select id="search-engine"><option value="duckduckgo">DuckDuckGo</option></select></label>
-  <p class="dialog-note">Celest uses standard web navigation inside an embedded browser frame. Some websites block embedding; use “Open separately” when a site requires a full browser tab.</p>
+  <label>Search provider<select id="search-engine"><option value="duckduckgo">DuckDuckGo · in-app results</option><option value="google">Google · standard search page</option></select></label>
+  <label class="settings-section">Browsing mode<select id="engine-select"><option value="native-frame">Native browser frame</option><option value="same-origin-lab">Same-origin Service Worker lab</option></select></label>
+  <section class="settings-section"><p class="settings-label">Authorized backend endpoint</p><input id="backend-url" class="settings-input" type="url" placeholder="https://your-service.example" autocomplete="url" /><div class="settings-actions"><button type="button" id="backend-save">Save endpoint</button><button type="button" class="secondary" id="backend-test">Test /health</button></div><p id="backend-status" class="connection-status" data-state="idle">Optional. Used only for a connectivity check against the endpoint’s /health route.</p></section>
+  <p class="dialog-note">Celest uses ordinary HTTP(S) navigation and embedded frames when permitted by each site. The lab only tests Celest-owned, same-origin resources.</p>
 </dialog>
 <dialog id="bookmarks-dialog">
   <form method="dialog" class="dialog-head"><h2>Bookmarks</h2><button class="tool-btn">✕</button></form>
@@ -61,7 +70,9 @@ const address = document.querySelector("#address");
 const status = document.querySelector("#status");
 const settingsDialog = document.querySelector("#settings-dialog");
 const bookmarksDialog = document.querySelector("#bookmarks-dialog");
-document.querySelector("#search-engine").value = state.searchEngine;
+document.querySelector("#search-engine").value = settings.get("searchEngine");
+document.querySelector("#engine-select").value = settings.get("engine");
+document.querySelector("#backend-url").value = settings.get("backendUrl");
 
 function renderTabs() {
   tabsEl.innerHTML = state.tabs.map(tab => `
@@ -89,7 +100,7 @@ async function renderSearchResults(query, searchStateUrl) {
     const results = Array.isArray(payload.results) ? payload.results : [];
     view.innerHTML = `
       <div class="search-page">
-        <p class="eyebrow">CELEST SEARCH · DUCKDUCKGO</p>
+        <p class="eyebrow">CELEST SEARCH · ${search.getProvider().name.toUpperCase()}</p>
         <h2>Results</h2>
         <p class="search-query">${escapeHtml(query)}</p>
         ${results.length ? `<div class="search-results">${results.map((item, index) => `
@@ -136,7 +147,10 @@ function navigate(raw, { replace = false } = {}) {
   if (!value) { status.textContent = "Enter a search or web address"; return; }
   const tab = activeTab();
   if (!isLikelyUrl(value)) {
-    const searchUrl = `celest-search://results?q=${encodeURIComponent(value)}`;
+    let searchRequest;
+    try { searchRequest = search.createSearch(value); } catch (error) { status.textContent = error.message; return; }
+    if (searchRequest.mode === "navigate") return navigate(searchRequest.url, { replace });
+    const searchUrl = searchRequest.url;
     if (replace && tab.index >= 0) tab.history[tab.index] = searchUrl;
     else {
       tab.history = tab.history.slice(0, tab.index + 1);
@@ -245,8 +259,44 @@ document.addEventListener("click", event => {
   }
 });
 document.querySelector("#search-engine").addEventListener("change", event => {
+  search.setProvider(event.target.value);
+  settings.set("searchEngine", event.target.value);
   state.searchEngine = event.target.value;
   persist();
+});
+document.querySelector("#engine-select").addEventListener("change", event => {
+  const selected = event.target.value;
+  if (!engines.supports(selected)) { status.textContent = "That browsing mode is unavailable"; return; }
+  settings.set("engine", selected);
+  if (selected === "same-origin-lab") navigate(new URL("/__celest_lab__/", location.origin).href);
+  else status.textContent = "Native browser frame selected";
+});
+document.querySelector("#backend-save").addEventListener("click", () => {
+  const input = document.querySelector("#backend-url");
+  const output = document.querySelector("#backend-status");
+  try {
+    const value = normalizeBackendUrl(input.value);
+    settings.set("backendUrl", value);
+    input.value = value;
+    output.dataset.state = "success";
+    output.textContent = value ? "Endpoint saved. Use Test /health to check connectivity." : "Endpoint cleared.";
+  } catch (error) {
+    output.dataset.state = "error";
+    output.textContent = error.message;
+  }
+});
+document.querySelector("#backend-test").addEventListener("click", async () => {
+  const output = document.querySelector("#backend-status");
+  output.dataset.state = "pending";
+  output.textContent = "Checking the configured /health endpoint…";
+  try {
+    const result = await checkBackend(settings.get("backendUrl"));
+    output.dataset.state = "success";
+    output.textContent = "Connected · " + (result.payload.app || "service") + " · HTTP OK";
+  } catch (error) {
+    output.dataset.state = "error";
+    output.textContent = error.message || "Backend health check failed.";
+  }
 });
 document.addEventListener("keydown", event => {
   const mod = event.metaKey || event.ctrlKey;
