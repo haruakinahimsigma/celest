@@ -3,14 +3,14 @@ import { resolveAddress, isLikelyUrl, isAllowedWebUrl } from "./engine/url.js";
 
 const STORAGE_KEY = "celest-state-v1";
 const app = document.querySelector("#app");
-const defaults = { tabs: [{ id: 1, title: "New tab", url: "", history: [], index: -1, active: true }], bookmarks: [], searchEngine: "duckduckgo", bareServerUrl: "https://bare-server-workers.vercel.app", nextId: 2 };
+const defaults = { tabs: [{ id: 1, title: "New tab", url: "", history: [], index: -1, active: true }], bookmarks: [], searchEngine: "duckduckgo", nextId: 2 };
 let state = loadState();
 
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
-      return { ...defaults, ...saved, searchEngine: "duckduckgo", bareServerUrl: typeof saved.bareServerUrl === "string" ? saved.bareServerUrl : defaults.bareServerUrl, tabs: saved.tabs, bookmarks: Array.isArray(saved.bookmarks) ? saved.bookmarks : [] };
+      return { ...defaults, ...saved, searchEngine: saved.searchEngine === "duckduckgo" ? saved.searchEngine : defaults.searchEngine, tabs: saved.tabs, bookmarks: Array.isArray(saved.bookmarks) ? saved.bookmarks : [] };
     }
   } catch {}
   return structuredClone(defaults);
@@ -131,7 +131,7 @@ function renderCurrent() {
   const sandbox = isCelestOrigin
     ? "allow-scripts allow-forms allow-same-origin"
     : "allow-scripts allow-forms allow-same-origin allow-popups";
-  view.innerHTML = `<div class="page-frame"><iframe class="site-frame" title="${escapeHtml(tab.title)}" src="${escapeHtml(destination.href)}" sandbox="${sandbox}" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen; autoplay; clipboard-read; clipboard-write"></iframe><div class="frame-hint" id="frame-hint">Loading inside Celest. If this site refuses embedding, its security policy is blocking the frame.</div></div>`;
+  view.innerHTML = `<div class="page-frame"><div class="frame-actions"><button type="button" data-open-external>Open separately ↗</button></div><iframe class="site-frame" title="${escapeHtml(tab.title)}" src="${escapeHtml(destination.href)}" sandbox="${sandbox}" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen; autoplay; clipboard-read; clipboard-write"></iframe><div class="frame-hint" id="frame-hint">Loading inside Celest. Some sites intentionally block embedded views; choose “Open separately” to continue in a normal browser tab.</div></div>`;
   status.textContent = "Loading inside Celest";
   const frame = view.querySelector("iframe");
   frame.addEventListener("load", () => {
@@ -229,7 +229,7 @@ document.addEventListener("click", event => {
   if (action === "bookmark") return saveBookmark();
   if (action === "back") return goHistory(-1);
   if (action === "forward") return goHistory(1);
-  if (action === "reload") { const tab = activeTab(); if (tab.url) renderCurrent(); return; }
+  if (action === "reload") { const tab = activeTab(); if (tab.url) renderCurrent(); return; }\n  if (event.target.closest("[data-open-external]")) { const tab = activeTab(); if (tab.url && !tab.url.startsWith("celest-search://")) window.open(tab.url, "_blank", "noopener,noreferrer"); return; }
   const resultLink = event.target.closest("[data-result-url]");
   if (resultLink) return navigate(resultLink.dataset.resultUrl);
 
@@ -250,49 +250,6 @@ document.addEventListener("click", event => {
   if (removeBookmark) {
     state.bookmarks.splice(Number(removeBookmark.dataset.bookmarkRemove), 1);
     persist(); renderBookmarks();
-  }
-});
-function normalizeBareServerUrl(value) {
-  const parsed = new URL(String(value || "").trim());
-  if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("Use an HTTP or HTTPS URL.");
-  return parsed.origin + parsed.pathname.replace(/\/+$/, "");
-}
-document.querySelector("#save-bare-server").addEventListener("click", () => {
-  try {
-    state.bareServerUrl = normalizeBareServerUrl(bareServerInput.value);
-    bareServerInput.value = state.bareServerUrl;
-    persist();
-    bareServerStatus.textContent = "Endpoint saved on this device. The browsing engine is not connected to it yet.";
-    bareServerStatus.dataset.state = "success";
-  } catch (error) {
-    bareServerStatus.textContent = error.message || "Enter a valid endpoint URL.";
-    bareServerStatus.dataset.state = "error";
-  }
-});
-document.querySelector("#reset-bare-server").addEventListener("click", () => {
-  state.bareServerUrl = defaults.bareServerUrl;
-  bareServerInput.value = state.bareServerUrl;
-  persist();
-  bareServerStatus.textContent = "Endpoint reset to the default address. The browsing engine is not connected to it yet.";
-  bareServerStatus.dataset.state = "neutral";
-});
-document.querySelector("#test-bare-server").addEventListener("click", async () => {
-  let endpoint;
-  try { endpoint = normalizeBareServerUrl(bareServerInput.value); }
-  catch (error) {
-    bareServerStatus.textContent = error.message || "Enter a valid endpoint URL.";
-    bareServerStatus.dataset.state = "error";
-    return;
-  }
-  bareServerStatus.textContent = "Checking whether the endpoint is reachable from this browser…";
-  bareServerStatus.dataset.state = "pending";
-  try {
-    const response = await fetch(endpoint, { method: "GET", mode: "cors", cache: "no-store" });
-    bareServerStatus.textContent = `Server responded with HTTP ${response.status}. This confirms reachability only, not Bare protocol compatibility.`;
-    bareServerStatus.dataset.state = response.ok ? "success" : "warning";
-  } catch {
-    bareServerStatus.textContent = "Browser could not read a response. Check the URL, CORS settings, and whether the service is online.";
-    bareServerStatus.dataset.state = "error";
   }
 });
 document.querySelector("#search-engine").addEventListener("change", event => {
