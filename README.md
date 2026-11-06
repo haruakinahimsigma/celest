@@ -4,7 +4,7 @@ Celest is an independently written browser-style web workspace. It is not a fork
 
 ## Current status
 
-**v0.2.0 — in-app viewport and Service Worker lab foundation**
+**v0.3.0 — modular core and configurable settings**
 
 - Dark browser-style interface
 - Multiple tabs with persistent session state
@@ -12,7 +12,10 @@ Celest is an independently written browser-style web workspace. It is not a fork
 - Back, forward, and reload controls for Celest's navigation history
 - Local bookmarks with remove/open actions
 - Keyboard shortcuts: Cmd/Ctrl+L, Cmd/Ctrl+T, Cmd/Ctrl+W
-- Persistent search-engine setting
+- Persistent search-provider and browsing-mode settings
+- Modular engine registry and search-provider manager
+- Google search-page navigation and DuckDuckGo in-app results
+- Optional authorized backend endpoint storage and `/health` connectivity diagnostics
 - URL normalization and HTTP(S)-only destination validation
 - In-app iframe viewport for destinations that permit embedding
 - Service Worker registration and a controlled same-origin lab fixture
@@ -46,13 +49,15 @@ The repository includes `railway.json`. Railway should use:
 
 The Node server serves the generated `dist/` directory and listens on Railway's `PORT` environment variable.
 
-## Architecture roadmap
+## Architecture
 
-1. **Celest UI** — browser controls, tabs, history, bookmarks, settings.
-2. **Celest Core** — navigation lifecycle, resource policy, and compatibility diagnostics.
-3. **Service Worker lab** — controlled request interception on Celest's own same-origin test fixture.
-4. **Transport lab** — WebSocket protocol exercises against a local test server, not an unrestricted relay.
-5. **Compatibility testing** — document which public sites work normally and which features are blocked by site policies.
+- `src/core/engine-manager.js` — registers and resolves supported browsing modes.
+- `src/search/search-manager.js` — provider registry and search destination generation.
+- `src/settings/settings-manager.js` — validated, persistent user preferences.
+- `src/core/backend-diagnostics.js` — optional `/health` checks for endpoints the user is authorized to test.
+- `src/core/engine-manager.test.js` — core manager tests.
+
+The native frame mode uses ordinary HTTP(S) navigation. The same-origin lab is a controlled Celest-owned Service Worker fixture, not a general-purpose traffic relay.
 
 ## Safety and scope
 
