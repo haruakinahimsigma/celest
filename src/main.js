@@ -153,7 +153,7 @@ function navigate(raw, { replace = false } = {}) {
     try { searchRequest = search.createSearch(value); } catch (error) { status.textContent = error.message; return; }
     if (searchRequest.mode === "external") {
       const opened = window.open(searchRequest.url, "_blank", "noopener,noreferrer");
-      status.textContent = opened === null ? "Google search requested · check whether your browser blocked the new tab" : "Google search opened in a new tab";
+      status.textContent = "Google search requested · your browser may ask to allow the new tab";
       return;
     }
     const searchUrl = searchRequest.url;
@@ -217,7 +217,7 @@ function renderBookmarks() {
   list.innerHTML = state.bookmarks.length ? state.bookmarks.map((item, i) => `
     <div class="bookmark-row"><button data-bookmark-open="${i}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.url)}</small></button><button class="remove-bookmark" data-bookmark-remove="${i}" title="Remove bookmark">×</button></div>`).join("") : '<p class="empty-bookmarks">No bookmarks yet. Save a page with the ☆ button.</p>';
 }
-function openHome() { renderHome(); address.value = ""; status.textContent = "New tab"; }
+function openHome() { const tab = activeTab(); tab.url = ""; tab.title = "New tab"; tab.history = []; tab.index = -1; render(); status.textContent = "New tab"; }
 
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
   navigator.serviceWorker.register("/celest-sw.js", { scope: "/" })
