@@ -82,7 +82,7 @@ const server = http.createServer(async (req, res) => {
 
   if (requestUrl.pathname === "/health") {
     res.writeHead(200, {"content-type":"application/json"});
-    res.end(JSON.stringify({ok:true,app:"celest",version:"0.2.0"}));
+    res.end(JSON.stringify({ok:true,app:"celest",version:"0.3.0"}));
     return;
   }
 
