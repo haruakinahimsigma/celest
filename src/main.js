@@ -48,13 +48,7 @@ app.innerHTML = `
 <dialog id="settings-dialog">
   <form method="dialog" class="dialog-head"><h2>Settings</h2><button class="tool-btn">✕</button></form>
   <label>Search engine<select id="search-engine"><option value="duckduckgo">DuckDuckGo</option></select></label>
-  <section class="settings-section">
-    <p class="settings-label">Bare server endpoint</p>
-    <input id="bare-server-url" class="settings-input" type="url" inputmode="url" spellcheck="false" placeholder="https://your-bare-server.example" />
-    <div class="settings-actions"><button id="save-bare-server" type="button">Save endpoint</button><button id="test-bare-server" class="secondary" type="button">Test connection</button><button id="reset-bare-server" class="secondary" type="button">Reset</button></div>
-    <p id="bare-server-status" class="connection-status" role="status">Endpoint is saved locally. Connection has not been tested.</p>
-  </section>
-  <p class="dialog-note">Settings are saved on this device. Saving an endpoint configures it for the next engine integration; it does not proxy pages by itself.</p>
+  <p class="dialog-note">Celest uses standard web navigation inside an embedded browser frame. Some websites block embedding; use “Open separately” when a site requires a full browser tab.</p>
 </dialog>
 <dialog id="bookmarks-dialog">
   <form method="dialog" class="dialog-head"><h2>Bookmarks</h2><button class="tool-btn">✕</button></form>
